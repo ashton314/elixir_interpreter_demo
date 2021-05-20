@@ -20,13 +20,13 @@ defmodule Interpreter.Env do
   @doc """
   Look up a variable in an environment. Raise an error if not found.
   """
-  @spec lookup(var :: atom(), env :: t()) :: Values.denotable_value()
-  def lookup(var, nil), do: raise("Unbound variable: #{var}")
+  @spec lookup(var :: atom(), env :: t()) :: Interpreter.maybe_value()
+  def lookup(var, nil), do: {:error, "Unbound variable: #{var}"}
 
   def lookup(var, %Env{pad: pad, parent: parent}) do
     case Map.fetch(pad, var) do
       {:ok, val} ->
-        val
+        {:ok, val}
 
       :error ->
         # Not found, try one higher
