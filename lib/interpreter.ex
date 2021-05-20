@@ -53,7 +53,7 @@ defmodule Interpreter do
 
   This is the primary evaluation routine for our interpreter.
   """
-  @spec eval(expr :: ast(), env :: Env.t()) :: maybe_value()
+  @spec eval(expr :: ast(), env :: Env.t() | nil) :: maybe_value()
 
   # Self-evaluating values
   def eval(b, _) when is_boolean(b), do: {:ok, b}

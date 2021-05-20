@@ -19,9 +19,40 @@ This project shows you how to write an interpreter for a small language in Elixi
 
 This is a big-step, eager, call-by-value interpreter that implements the lambda calculus and some basic mathematical operators. The environment is not factored: values are stored directly with the variables they bind. It does not support mutation. We use lexical scope. Errors are handled explicitly by modeling failure-prone computation with Elixir's idomatic equivalent of the [Maybe monad](https://en.wikipedia.org/wiki/Monad_(functional_programming)#An_example:_Maybe).
 
+Our langauge doesn't support recursion natively because we're missing a ~letrec~. (Can't define without a factored environment; there's no way to modify the environment a lambda is closed over after the fact.) Instead, we provide the ~:fix~ function which implements the [Y-Combinator](https://en.wikipedia.org/wiki/Fixed-point_combinator#Fixed-point_combinators_in_lambda_calculus).
+
+** Motivation
+
+What's the point of builting an interpreter, beyond its educational value? If you have a system that you need to allow end-users to customize heavily for their needs, it might be the easiest way to give them the power that they need.
+
+An interpreted language is hermeticlly isolated from your run-time environment. You can execute arbitary code in a sandbox, and only allow into the language what you want the users to be able to do. For example, you can restrict what the users can find out about their environment, and you can monitor other effects like resource consumption and running time.
+
+* Running
+
+Fire up the project with:
+
+#+begin_example
+$ iex -S mix
+#+end_example
+
+Run some AST by invoking the ~Interpreter.eval/2~ function. The second argument is the environment. If you set it to ~nil~ it will be an empty environment.
+
+** Parsing
+
+Writing out the AST by hand can be tedious. Wouldn't you rather write some Lisp?
+
+If you have [[https://racket-lang.org][Racket]] installed, you can run the [[file:parser.rkt][parser.rkt]]:
+
+#+begin_src racket
+  (translate '(Y2 (λ (f) (λ (n) (if (= n 0) 1 (* n (f (- n 1))))))))
+  ;;=> "{:app, :Y2, [{:lambda, [:f], {:lambda, [:n], {:if, {:=, :n, 0}, 1, {:*, :n, {:app, :f, [{:-, :n, 1}]}}}}}]}"
+#+end_src
+
+Note: at time of writing, not everything has been implemented in the parser.
+
 * License
 
-[[file:LICENSE][MIT License]]. Do whatever you want with this, just no warranty.
+[[file:LICENSE][MIT License]]. Do whatever you want with this, just no warranty. Attributions with a link back to this repo appreciated.
 
 * Author
 
