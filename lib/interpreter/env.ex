@@ -16,4 +16,27 @@ defmodule Interpreter.Env do
         }
 
   defstruct [:pad, :parent]
+
+  @doc """
+  Look up a variable in an environment. Raise an error if not found.
+  """
+  @spec lookup(var :: atom(), env :: t()) :: Values.denotable_value()
+  def lookup(var, nil), do: raise("Unbound variable: #{var}")
+
+  def lookup(var, %Env{pad: pad, parent: parent}) do
+    case Map.fetch(pad, var) do
+      {:ok, val} ->
+        val
+
+      :error ->
+        # Not found, try one higher
+        lookup(var, parent)
+    end
+  end
+
+  @doc """
+  Extend an environment with a new set of bindings that shadow old ones.
+  """
+  @spec extend(env :: t(), new_binds :: %{atom() => Values.denotable_value()}) :: t()
+  def extend(env, new_binds), do: %Env{pad: new_binds, parent: env}
 end
