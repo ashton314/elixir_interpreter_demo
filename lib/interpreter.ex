@@ -30,15 +30,17 @@ defmodule Interpreter do
           | {:if, expr(), expr(), expr()}
           | {:lambda, params :: [atom()], body :: expr()}
           | {:app, fref :: expr(), args :: [expr()]}
-          | {:letrec, [{var :: atom(), binding :: expr()}], body :: expr()}
+          # Letrec requires the ability to mutate the environment: but
+          # we don't have mutation in Elixir, so I can't do this
+          # | {:letrec, [{var :: atom(), binding :: expr()}], body :: expr()}
           | {:let, [{var :: atom(), binding :: expr()}], body :: expr()}
           | {:begin, [expr()]}
 
   @type binop :: :+ | :- | :* | :/ | :=
   @binary_operations ~w(+ - * / =)a
 
-  @type unop :: :not
-  @unary_operations ~w(not)a
+  @type unop :: :not | :zero? | :say
+  @unary_operations ~w(say zero? not)a
 
   @typedoc """
   We handle errors explicitly in our interpreter. This means
@@ -77,7 +79,19 @@ defmodule Interpreter do
 
   # Unary operators
   def eval({op, arg}, env) when op in @unary_operations do
-    with {:ok, v} <- eval(arg, env), do: {:ok, not v}
+    with {:ok, v} <- eval(arg, env) do
+      case op do
+        :not ->
+          {:ok, not v}
+
+        :zero? ->
+          {:ok, v == 0}
+
+        :say ->
+          IO.inspect(arg)
+          {:ok, arg}
+      end
+    end
   end
 
   # Conditionals
@@ -118,7 +132,67 @@ defmodule Interpreter do
     end
   end
 
-  def eval({:letrec, [bindings], body}, env) do
+  # Elixir does not support mutation, but we would need to modify the
+  # environment in order to make it so that functions close over
+  # themselves. With a factored environment this would be easy. Not
+  # going to go there this time. Instead, we'll just introduce a `fix`
+  # operator.
+  # def eval({:letrec, [bindings], body}, env) do
+  # end
+
+  def eval({:fix, func}, env) do
+    # y = fn f ->
+    #   (fn x ->
+    #      f.(fn n -> x.(x).(n) end)
+    #    end).(fn x -> f.(fn n -> x.(x).(n) end) end)
+    # end
+
+    # Behold! Y Combinator!!
+    yast =
+      {:lambda, [:f_fix_internal],
+       {:app,
+        {:lambda, [:x_fix_internal],
+         {:app, :f_fix_internal,
+          [
+            {:lambda, [:n_fix_internal],
+             {:app, {:app, :x_fix_internal, [:x_fix_internal]}, [:n_fix_internal]}}
+          ]}},
+        [
+          {:lambda, [:x_fix_internal],
+           {:app, :f_fix_internal,
+            [
+              {:lambda, [:n_fix_internal],
+               {:app, {:app, :x_fix_internal, [:x_fix_internal]}, [:n_fix_internal]}}
+            ]}}
+        ]}}
+
+    eval({:app, yast, [func]}, env)
+  end
+
+  def eval({:let, binds, body}, env) do
+    with {:ok, new_pad} <-
+           Enum.reduce(binds, {:ok, %{}}, fn
+             # If we get an error evaluating one of the bindings, pass
+             # it through
+             _, {:error, e} ->
+               {:error, e}
+
+             # If everything's good, evaluate the expression and then
+             # bind the variable name to it
+             {x, expr}, {:ok, acc} ->
+               with {:ok, v} <- eval(expr, env), do: {:ok, Map.put(acc, x, v)}
+           end) do
+      # Now that we've built a new pad, we can extend the old env and
+      # evaluate the body
+      eval(body, Env.extend(env, new_pad))
+    end
+  end
+
+  # Evaluate a block
+  def eval({:begin, [expr]}, env), do: eval(expr, env)
+
+  def eval({:begin, [expr | rest]}, env) do
+    with {:ok, _result} <- eval(expr, env), do: eval({:begin, rest}, env)
   end
 
   def eval({op, _, _}, _), do: {:error, "Unknown binary operator: #{op}"}

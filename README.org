@@ -4,7 +4,12 @@ Demonstration of how to write an interpeter in Elixir
 
 * Synopsis
 
-TODO
+Factorial:
+
+#+begin_src elixir
+iex> Interpreter.eval({:app, {:fix, {:lambda, [:f], {:lambda, [:n], {:if, {:=, :n, 0}, 1, {:*, :n, {:app, :f, [{:-, :n, 1}]}}}}}}, [5]}, nil)
+{:ok, 120}
+#+end_src
 
 * Description
 
