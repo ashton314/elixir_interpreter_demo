@@ -15,6 +15,10 @@
      (format "{:lambda, [~a], ~a}" (string-join (map translate xs) ", ") (translate body))]
     [`(lambda (,xs ...) ,body)
      (format "{:lambda, [~a], ~a}" (string-join (map translate xs) ", ") (translate body))]
+    [`(let ([,xs ,vs] ...) ,body)
+     (format "{:let, [~a], ~a}"
+             (string-join (map (λ (x v) (format "{~a, ~a}" (translate x) (translate v))) xs vs) ", ")
+             [translate body])]
     [`(,f ,es ...)
      (format "{:app, ~a, [~a]}" (translate f) (string-join (map translate es) ", "))]))
 
